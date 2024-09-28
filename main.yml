@@ -1,0 +1,83 @@
+
+---
+- name: Installing Apache and Nginx
+  hosts: all
+  become: yes
+
+  vars:
+    doc_root: "/home/user"
+    index_file: "index.html"
+
+  tasks:
+  - block:
+     - name: Install Apache on Amazon Linux
+       yum:
+         name: httpd
+         state: latest
+
+     - name: Create /home/user directory
+       file:
+         path: /home/user
+         state: directory
+         mode: 0755
+
+     - name: Get the index.html file
+       uri:
+         url: https://www.google.com/
+         dest: /home/user/index.html
+         method: GET
+
+     - name: Deploy Apache configuration from template
+       template:
+         src: templates/httpd.conf.j2
+         dest: /etc/httpd/conf/httpd.conf
+         backup: yes
+       notify: Restart Apache
+
+     - name: Start Apache on Amazon Linux
+       service:
+         name: httpd
+         state: started
+         enabled: yes
+    when: ansible_os_family == "RedHat"
+
+  - block:
+     - name: Install Nginx in ubuntu
+       apt:
+         name: nginx
+         state: latest
+
+     - name: Create /home/user directory
+       file:
+         path: /home/user
+         state: directory
+         mode: 0755
+
+     - name: Get the index.html file
+       get_url:
+        url: "https://raw.githubusercontent.com/DavoA/index-file/main/index.html"
+        dest: "/home/user/index.html"
+
+     - name: Deploy Nxinx configuration from template
+       template:
+         src: templates/default.j2
+         dest: /etc/nginx/sites-available/default
+         backup: yes
+       notify: Restart Nginx
+     
+     - name: Start Nginx on Ubuntu
+       service:
+         name: nginx
+         state: started
+         enabled: yes
+    when: ansible_os_family == "Debian"
+
+  handlers:
+  - name: Restart Apache
+    service:
+      name: httpd
+      state: restarted
+  - name: Restart Nginx
+    service:
+      name: nginx
+      state: restarted
